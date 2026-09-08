@@ -17,7 +17,7 @@
 <body>
   <div class="bg-orb orb-a"></div><div class="bg-orb orb-b"></div><div class="bg-grid"></div>
   <header class="topbar glass">
-    <div><p class="eyebrow">SALES INTELLIGENCE • JAN–AUG</p><h1>2025 vs 2026 Sales Analysis</h1><p class="subtitle">Interactive customer, item, geography and returns performance dashboard.</p></div>
+    <div><p class="eyebrow">SALES INTELLIGENCE • JAN–AUG</p><h1>2025 vs 2026 Sales Analysis</h1><p class="subtitle">Interactive customer, item, geography, quantity and returns performance dashboard.</p></div>
     <div class="upload-wrap">
       <label class="upload-btn" for="excelFiles">Load 2025 + 2026 Excel</label><input id="excelFiles" type="file" accept=".xlsx,.xls" multiple hidden />
       <label class="ghost-btn" for="csvFile">Or CSV</label><input id="csvFile" type="file" accept=".csv,text/csv" hidden />
@@ -27,31 +27,24 @@
   <main>
     <section class="glass filter-panel">
       <div class="section-heading"><div><p class="eyebrow">CONNECTED FILTERS</p><h2>Explore the data</h2></div><p class="hint">Click any checkbox to multi-select — no Ctrl/Cmd needed.</p></div>
-      <div class="global-search-wrap">
-        <span class="search-icon">⌕</span>
-        <input id="globalSearch" class="global-search" type="search" placeholder="Search customer, item, state, zone or line…" autocomplete="off" />
-        <button id="clearSearch" class="search-clear" type="button">Clear</button>
-      </div>
-      <div class="filter-toolbar">
-        <div class="filter-toolbar-left">
-          <button id="toggleFilters" class="filter-toggle" type="button">☷ Filters & Multi-select</button>
-          <span id="selectionCount" class="selection-count">0 selected</span>
-        </div>
-        <button id="clearSelections" class="mini-action" type="button">Clear selections</button>
-      </div>
+      <div class="global-search-wrap"><span class="search-icon">⌕</span><input id="globalSearch" class="global-search" type="search" placeholder="Search customer, item, state, zone or line…" autocomplete="off" /><button id="clearSearch" class="search-clear" type="button">Clear</button></div>
+      <div class="filter-toolbar"><div class="filter-toolbar-left"><button id="toggleFilters" class="filter-toggle" type="button">☷ Filters & Multi-select</button><span id="selectionCount" class="selection-count">0 selected</span></div><button id="clearSelections" class="mini-action" type="button">Clear selections</button></div>
       <div id="selectedChips" class="selected-chips"></div>
-      <div id="filtersWrap" class="filters-wrap">
-        <div id="filters" class="filters-grid"></div>
-      </div>
+      <div id="filtersWrap" class="filters-wrap"><div id="filters" class="filters-grid"></div></div>
     </section>
+
     <section class="kpi-grid">
       <article class="kpi glass neon-cyan"><span>2025 Net Sales</span><strong id="kpi2025">—</strong><small>Jan–Aug</small></article>
       <article class="kpi glass neon-violet"><span>2026 Net Sales</span><strong id="kpi2026">—</strong><small>Jan–Aug</small></article>
-      <article class="kpi glass neon-green"><span>YoY Growth</span><strong id="kpiGrowth">—</strong><small>2026 vs 2025</small></article>
+      <article class="kpi glass neon-green"><span>Sales YoY Growth</span><strong id="kpiGrowth">—</strong><small>2026 vs 2025</small></article>
       <article class="kpi glass neon-pink"><span>Returns</span><strong id="kpiReturns">—</strong><small>Absolute returned amount</small></article>
       <article class="kpi glass neon-amber"><span>Return Rate</span><strong id="kpiReturnRate">—</strong><small>Returns ÷ gross sales</small></article>
       <article class="kpi glass neon-blue"><span>Customers ≥ 10K</span><strong id="kpi10k">—</strong><small>2026 Jan–Aug net sales</small></article>
+      <article class="kpi glass neon-cyan"><span>2025 Net Qty</span><strong id="kpiQty2025">—</strong><small>Net Qty (Invoiced)</small></article>
+      <article class="kpi glass neon-violet"><span>2026 Net Qty</span><strong id="kpiQty2026">—</strong><small>Net Qty (Invoiced)</small></article>
+      <article class="kpi glass neon-green"><span>Net Qty YoY Growth</span><strong id="kpiQtyGrowth">—</strong><small>2026 vs 2025</small></article>
     </section>
+
     <section class="chart-grid two-col">
       <article class="glass chart-card"><div class="card-title"><h3>Monthly Sales Trend</h3><span>2025 vs 2026 • Jan–Aug</span></div><div id="monthlyChart" class="chart"></div></article>
       <article class="glass chart-card"><div class="card-title"><h3>Return Rate by Zone</h3><span>Returned amount / gross sales</span></div><div id="returnZoneChart" class="chart"></div></article>
@@ -61,12 +54,22 @@
       <article class="glass chart-card"><div class="card-title"><h3>Sales by State</h3><span>2026</span></div><div id="stateChart" class="chart"></div></article>
       <article class="glass chart-card"><div class="card-title"><h3>Sales by Item</h3><span>Top items • 2026</span></div><div id="itemChart" class="chart"></div></article>
     </section>
+
+    <section class="chart-grid two-col">
+      <article class="glass chart-card"><div class="card-title"><h3>Monthly Net Qty Trend</h3><span>2025 vs 2026 • Jan–Aug</span></div><div id="monthlyQtyChart" class="chart"></div></article>
+      <article class="glass chart-card"><div class="card-title"><h3>Net Qty by Zone</h3><span>2026</span></div><div id="qtyZoneChart" class="chart"></div></article>
+    </section>
+    <section class="chart-grid two-col">
+      <article class="glass chart-card"><div class="card-title"><h3>Net Qty by State</h3><span>Top states • 2026</span></div><div id="qtyStateChart" class="chart"></div></article>
+      <article class="glass chart-card"><div class="card-title"><h3>Net Qty by Item</h3><span>Top items • 2026</span></div><div id="qtyItemChart" class="chart"></div></article>
+    </section>
+
     <section class="chart-grid two-col">
       <article class="glass table-card"><div class="card-title"><div><h3>Top 10 Growth Customers</h3><span>Growth ≥ 10% • select State</span></div><select id="growthState" class="state-selector"></select></div><div class="table-scroll"><table><thead><tr><th>#</th><th>Customer</th><th>2025</th><th>2026</th><th>Growth</th></tr></thead><tbody id="growthTable"></tbody></table></div></article>
       <article class="glass table-card"><div class="card-title"><div><h3>Top 10 Decline Customers</h3><span>Decline ≥ 10% • select State</span></div><select id="declineState" class="state-selector"></select></div><div class="table-scroll"><table><thead><tr><th>#</th><th>Customer</th><th>2025</th><th>2026</th><th>Decline</th></tr></thead><tbody id="declineTable"></tbody></table></div></article>
     </section>
     <section class="glass table-card wide-table"><div class="card-title"><div><h3>Customers with Sales ≥ 10,000</h3><span>2026 Jan–Aug net sales, ranked highest first</span></div><span id="tenKCount" class="status-pill">0 customers</span></div><div class="table-scroll"><table><thead><tr><th>#</th><th>Customer</th><th>State</th><th>Zone</th><th>2025</th><th>2026</th><th>YoY</th><th>Returns</th><th>Return Rate</th></tr></thead><tbody id="tenKTable"></tbody></table></div></section>
-    <section id="emptyState" class="glass empty-state"><h2>Load the two Excel files to activate the dashboard</h2><p>Select the 2025 and 2026 workbooks together. Processing happens only inside your browser; the Excel data is not uploaded to this public GitHub repository.</p><div class="schema-box"><strong>Mapped automatically</strong><span>Year • Month • Zone name • State • Name • Line Name • Item name • Net Amount • Sold Amount • Returned Amount</span></div></section>
+    <section id="emptyState" class="glass empty-state"><h2>Load the two Excel files to activate the dashboard</h2><p>Select the 2025 and 2026 workbooks together. Processing happens only inside your browser; the Excel data is not uploaded to this public GitHub repository.</p><div class="schema-box"><strong>Mapped automatically</strong><span>Year • Month • Zone name • State • Name • Line Name • Item name • Net Qty • Net Amount • Sold Amount • Returned Amount</span></div></section>
   </main>
   <footer>Jan–Aug Analysis Update • Interactive GitHub Pages Dashboard</footer><script src="app.js"></script>
 </body>
