@@ -36,10 +36,16 @@ function initFilters(){
   $('filters').innerHTML='';
   FILTERS.forEach(([key,label])=>{
     const box=document.createElement('div');box.className='filter-box';
-    box.innerHTML=`<label>${label}</label><input class="filter-search" id="fs-${key}" type="search" placeholder="Search ${label.toLowerCase()}…" autocomplete="off"><select id="f-${key}" multiple></select>`;
+    box.innerHTML=`<label>${label}</label><input class="filter-search" id="fs-${key}" type="search" placeholder="Search ${label.toLowerCase()}…" autocomplete="off"><select id="f-${key}" multiple></select><div class="filter-actions"><button class="filter-mini-btn primary" data-action="select" type="button">Select visible</button><button class="filter-mini-btn" data-action="clear" type="button">Clear</button></div>`;
     $('filters').appendChild(box);
     box.querySelector('select').addEventListener('change',e=>{selections[key]=new Set([...e.target.selectedOptions].map(o=>o.value));updateAll()});
     box.querySelector('input').addEventListener('input',e=>{filterSearches[key]=norm(e.target.value);renderFilterOptions(key)});
+    box.querySelector('[data-action="select"]').addEventListener('click',()=>{
+      const sel=$(`f-${key}`);
+      selections[key]=new Set([...selections[key],...[...sel.options].map(o=>o.value)]);
+      updateAll();
+    });
+    box.querySelector('[data-action="clear"]').addEventListener('click',()=>{selections[key]=new Set();updateAll()});
   });
 }
 function availableValues(key){
@@ -56,6 +62,18 @@ function renderFilterOptions(key){
   sel.innerHTML=vals.map(v=>`<option value="${escapeHtml(v)}" ${keep.has(v)?'selected':''}>${escapeHtml(key==='returns'?Number(v).toLocaleString(undefined,{maximumFractionDigits:2}):v)}</option>`).join('');
 }
 function refreshFilterOptions(){FILTERS.forEach(([key])=>renderFilterOptions(key))}
+function renderSelectionsUI(){
+  const chips=[];
+  let count=0;
+  FILTERS.forEach(([key,label])=>{
+    selections[key].forEach(value=>{count++;chips.push(`<span class="filter-chip"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(key==='returns'?Number(value).toLocaleString(undefined,{maximumFractionDigits:2}):value)} <button type="button" data-filter="${key}" data-value="${escapeHtml(value)}" aria-label="Remove">×</button></span>`)});
+  });
+  $('selectionCount').textContent=`${count} selected`;
+  $('selectedChips').innerHTML=chips.join('');
+  $('selectedChips').querySelectorAll('button').forEach(btn=>btn.addEventListener('click',()=>{
+    selections[btn.dataset.filter].delete(btn.dataset.value);updateAll();
+  }));
+}
 
 function sum(arr,key){return arr.reduce((a,r)=>a+(r[key]||0),0)}
 function groupSum(data,key,metric='sales',year=null){const m=new Map();data.filter(r=>year===null||r.year===year).forEach(r=>m.set(r[key],(m.get(r[key])||0)+r[metric]));return m}
@@ -73,15 +91,18 @@ function updateCharts(data){
 function stateOptions(stats){const states=[...new Set(stats.map(x=>x.state))].sort();['growthState','declineState'].forEach(id=>{const old=$(id).value;$(id).innerHTML=['All States',...states].map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');if([...$(id).options].some(o=>o.value===old))$(id).value=old})}
 function renderGrowthTables(stats){stateOptions(stats);const render=(id,state,kind)=>{let arr=stats.filter(x=>state==='All States'||x.state===state).filter(x=>x.growth!==null);if(kind==='growth')arr=arr.filter(x=>x.growth>=10).sort((a,b)=>b.growth-a.growth).slice(0,10);else arr=arr.filter(x=>x.growth<=-10).sort((a,b)=>a.growth-b.growth).slice(0,10);$(id).innerHTML=arr.length?arr.map((x,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(x.name)}</td><td>${fmt(x.y25)}</td><td>${fmt(x.y26)}</td><td class="${kind==='growth'?'pos':'neg'}">${pct(x.growth)}</td></tr>`).join(''):`<tr><td colspan="5">No matching customers</td></tr>`};render('growthTable',$('growthState').value,'growth');render('declineTable',$('declineState').value,'decline')}
 function render10k(stats){const arr=stats.filter(x=>x.y26>=10000).sort((a,b)=>b.y26-a.y26);$('tenKCount').textContent=`${arr.length} customers`;$('tenKTable').innerHTML=arr.length?arr.map((x,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(x.name)}</td><td>${escapeHtml(x.state)}</td><td>${escapeHtml(x.zone)}</td><td>${fmt(x.y25)}</td><td>${fmt(x.y26)}</td><td class="${(x.growth??0)>=0?'pos':'neg'}">${pct(x.growth)}</td><td>${fmt(x.ret26)}</td><td>${x.returnRate!==null?x.returnRate.toFixed(2)+'%':'—'}</td></tr>`).join(''):`<tr><td colspan="9">No customers at or above 10,000</td></tr>`}
-function updateAll(){if(!rawData.length)return;refreshFilterOptions();const data=filtered();updateKPIs(data);updateCharts(data);const stats=customerStats(data);renderGrowthTables(stats);render10k(stats);$('dataStatus').textContent=`${data.length.toLocaleString()} / ${rawData.length.toLocaleString()} rows`;$('emptyState').classList.add('hidden')}
-function loadRows(rows,source){rawData=rows.map(normalizeRow).filter(r=>[2025,2026].includes(r.year)&&r.month>=1&&r.month<=8);selections=Object.fromEntries(FILTERS.map(([k])=>[k,new Set()]));filterSearches=Object.fromEntries(FILTERS.map(([k])=>[k,'']));globalQuery='';$('globalSearch').value='';FILTERS.forEach(([k])=>{const el=$(`fs-${k}`);if(el)el.value=''});if(!rawData.length){$('dataStatus').textContent='No valid Jan–Aug 2025/2026 rows';return}$('dataStatus').textContent=`${source} • ${rawData.length.toLocaleString()} rows`;updateAll()}
+function updateAll(){if(!rawData.length){renderSelectionsUI();return}refreshFilterOptions();renderSelectionsUI();const data=filtered();updateKPIs(data);updateCharts(data);const stats=customerStats(data);renderGrowthTables(stats);render10k(stats);$('dataStatus').textContent=`${data.length.toLocaleString()} / ${rawData.length.toLocaleString()} rows`;$('emptyState').classList.add('hidden')}
+function resetSelectionState(){selections=Object.fromEntries(FILTERS.map(([k])=>[k,new Set()]));filterSearches=Object.fromEntries(FILTERS.map(([k])=>[k,'']));globalQuery='';$('globalSearch').value='';FILTERS.forEach(([k])=>{const el=$(`fs-${k}`);if(el)el.value=''})}
+function loadRows(rows,source){rawData=rows.map(normalizeRow).filter(r=>[2025,2026].includes(r.year)&&r.month>=1&&r.month<=8);resetSelectionState();if(!rawData.length){$('dataStatus').textContent='No valid Jan–Aug 2025/2026 rows';renderSelectionsUI();return}$('dataStatus').textContent=`${source} • ${rawData.length.toLocaleString()} rows`;updateAll()}
 function findDataSheet(workbook){for(const sheetName of workbook.SheetNames){const ws=workbook.Sheets[sheetName];const preview=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',range:0,raw:false}).slice(0,6);for(let i=0;i<preview.length;i++){const h=preview[i].map(norm);if(h.includes('year')&&h.includes('name')&&h.includes('state')&&h.includes('item name')&&h.includes('net amount (invoiced)'))return {ws,sheetName,headerRow:i}}}return null}
 async function rowsFromExcel(file){const buffer=await file.arrayBuffer();const wb=XLSX.read(buffer,{type:'array',cellDates:false});const found=findDataSheet(wb);if(!found)throw new Error(`Could not find sales sheet in ${file.name}`);return XLSX.utils.sheet_to_json(found.ws,{range:found.headerRow,defval:'',raw:true})}
 
 $('globalSearch').addEventListener('input',e=>{clearTimeout(searchTimer);globalQuery=norm(e.target.value);searchTimer=setTimeout(updateAll,220)});
 $('clearSearch').addEventListener('click',()=>{$('globalSearch').value='';globalQuery='';updateAll()});
+$('toggleFilters').addEventListener('click',()=>{const wrap=$('filtersWrap');wrap.classList.toggle('collapsed');$('toggleFilters').textContent=wrap.classList.contains('collapsed')?'☷ Show Filters & Multi-select':'☷ Filters & Multi-select'});
+$('clearSelections').addEventListener('click',()=>{selections=Object.fromEntries(FILTERS.map(([k])=>[k,new Set()]));updateAll()});
 $('excelFiles').addEventListener('change',async e=>{const files=[...e.target.files];if(!files.length)return;try{$('dataStatus').textContent='Reading Excel files…';const groups=await Promise.all(files.map(rowsFromExcel));loadRows(groups.flat(),`${files.length} Excel file${files.length>1?'s':''}`)}catch(err){console.error(err);$('dataStatus').textContent=err.message||'Excel load failed'}});
 $('csvFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;Papa.parse(f,{header:true,skipEmptyLines:true,complete:r=>loadRows(r.data,f.name)})});
-$('resetFilters').addEventListener('click',()=>{selections=Object.fromEntries(FILTERS.map(([k])=>[k,new Set()]));filterSearches=Object.fromEntries(FILTERS.map(([k])=>[k,'']));globalQuery='';$('globalSearch').value='';FILTERS.forEach(([k])=>{const el=$(`fs-${k}`);if(el)el.value=''});updateAll()});
+$('resetFilters').addEventListener('click',()=>{resetSelectionState();updateAll()});
 $('growthState').addEventListener('change',()=>renderGrowthTables(customerStats(filtered())));$('declineState').addEventListener('change',()=>renderGrowthTables(customerStats(filtered())));
-initFilters();
+initFilters();renderSelectionsUI();
