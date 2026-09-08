@@ -1,57 +1,59 @@
 # Jan–Aug Analysis Update
 
-Interactive GitHub Pages sales dashboard comparing the same period in **2025 vs 2026**.
+Interactive GitHub Pages sales dashboard comparing **January–August 2025 vs January–August 2026**.
 
 ## Features
 - Connected multi-select filters: Zone, State, Customer Name, Line Name, Item Name, Sales Return Value
-- 2025 vs 2026 sales KPIs and monthly trend
+- 2025 vs 2026 net-sales KPIs and monthly trend
 - Top 10 customers with growth **>= 10%**, selectable by State
 - Top 10 customers with decline **>= 10%**, selectable by State
 - Sales analysis by Item, Zone and State
-- Customers with 2026 selected-period sales **>= 10,000**
+- Customers with 2026 Jan–Aug net sales **>= 10,000**
 - Return value and return-rate analysis
-- Responsive charts
+- Responsive Plotly charts
 - Neon + glassmorphism visual design
-- Client-side CSV processing (no server required)
+- Excel processing happens locally in the browser; customer data is not committed to this public repository
 
-## Data file
-For automatic loading, add your real file as:
+## Load the real Excel files
+Open the dashboard and click **Load 2025 + 2026 Excel**. Select both workbooks together.
 
-`data/sales.csv`
+The dashboard automatically finds the sales sheet and maps the actual columns used in the supplied workbooks:
 
-You can also upload a CSV from the dashboard using **Upload CSV**. A small demo file is included at `data/sample-sales.csv` so the UI can be previewed immediately.
-
-### Supported columns
-The parser accepts common aliases, including:
-
-| Required concept | Supported examples |
+| Dashboard concept | Excel column |
 |---|---|
-| Date / period | `date`, `invoice date`, `sales date`, or `year` + `month` |
-| Zone | `zone`, `sales zone`, `region` |
-| State | `state`, `sales state`, `province` |
-| Customer | `name`, `customer name`, `customer`, `client name` |
-| Line | `line name`, `line`, `product line` |
-| Item | `item name`, `item`, `product name`, `sku name` |
-| Sales | `sales value`, `sales`, `net sales`, `sales amount`, `amount` |
-| Returns | `sales return value`, `return value`, `returns`, `sales returns`, `return amount` |
+| Year | `Year` |
+| Month | `Month ` |
+| Zone | `Zone name` |
+| State | `State` |
+| Customer | `Name` |
+| Line | `Line Name` / `Line name` |
+| Item | `Item name` |
+| Net sales | `Net Amount (Invoiced)` |
+| Gross sales | `Sold Amount (Invoiced)` |
+| Returns | `Returned Amount (Invoiced)` |
 
-Only rows with year **2025** or **2026** are included in the comparison.
+Only months **January through August** are included for both years, so the comparison uses the same period.
 
 ## Calculation notes
-- YoY Growth % = `(Sales 2026 - Sales 2025) / Sales 2025 * 100`
-- Customers with zero 2025 baseline are excluded from percentage growth/decline rankings to avoid invalid division.
-- Return Rate = `2026 Return Value / 2026 Sales * 100`
-- The >= 10,000 customer table uses **2026 sales after the current filters are applied**.
+- Net Sales = `Net Amount (Invoiced)`
+- Return Value = absolute value of `Returned Amount (Invoiced)`
+- Return Rate = `Returned Amount / Sold Amount * 100`
+- YoY Growth % = `(Net Sales 2026 - Net Sales 2025) / Net Sales 2025 * 100`
+- Customers with zero 2025 baseline are excluded from percentage growth/decline rankings to avoid invalid division
+- The >= 10,000 customer table uses **2026 Jan–Aug net sales after the current filters are applied**
+
+## Privacy
+This repository is public. The real Excel files and customer-level sales data are intentionally **not stored in GitHub**. When you select the files from the dashboard, SheetJS reads them locally in your browser and the analysis is performed client-side.
 
 ## Publish with GitHub Pages
 In GitHub open **Settings → Pages**, choose **Deploy from a branch**, then select:
 - Branch: `main`
 - Folder: `/ (root)`
 
-Save the settings. The site will then be served as a GitHub Pages website.
+Save the settings.
 
 ## Files
-- `index.html` — dashboard layout
+- `index.html` — dashboard layout and Excel loader
 - `styles.css` — neon / glass UI
-- `app.js` — data parsing, linked filters, calculations, charts
-- `data/sample-sales.csv` — demo data only
+- `app.js` — Excel parsing, linked filters, calculations and charts
+- `data/sample-sales.csv` — demo file retained for development only
