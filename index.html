@@ -25,13 +25,23 @@
   </header>
   <main>
     <section class="glass filter-panel">
-      <div class="section-heading"><div><p class="eyebrow">CONNECTED FILTERS</p><h2>Explore the data</h2></div><p class="hint">Multi-select filters are linked. Search updates every KPI, chart and table.</p></div>
+      <div class="section-heading"><div><p class="eyebrow">CONNECTED FILTERS</p><h2>Explore the data</h2></div><p class="hint">Search first, then refine with linked multi-select filters.</p></div>
       <div class="global-search-wrap">
         <span class="search-icon">⌕</span>
         <input id="globalSearch" class="global-search" type="search" placeholder="Search customer, item, state, zone or line…" autocomplete="off" />
         <button id="clearSearch" class="search-clear" type="button">Clear</button>
       </div>
-      <div id="filters" class="filters-grid"></div>
+      <div class="filter-toolbar">
+        <div class="filter-toolbar-left">
+          <button id="toggleFilters" class="filter-toggle" type="button">☷ Filters & Multi-select</button>
+          <span id="selectionCount" class="selection-count">0 selected</span>
+        </div>
+        <button id="clearSelections" class="mini-action" type="button">Clear selections</button>
+      </div>
+      <div id="selectedChips" class="selected-chips"></div>
+      <div id="filtersWrap" class="filters-wrap">
+        <div id="filters" class="filters-grid"></div>
+      </div>
     </section>
     <section class="kpi-grid">
       <article class="kpi glass neon-cyan"><span>2025 Net Sales</span><strong id="kpi2025">—</strong><small>Jan–Aug</small></article>
