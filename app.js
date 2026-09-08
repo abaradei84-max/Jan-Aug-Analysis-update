@@ -28,6 +28,7 @@ function normalizeRow(r){
 function escapeHtml(s){return String(s).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]||c))}
 function returnFilterValue(v){return Number(v).toFixed(2)}
 function valueForFilter(r,key){if(key==='month')return MONTH_LABELS[r.month]||String(r.month);if(key==='returns')return returnFilterValue(r.returns);return String(r[key])}
+function displayFilterValue(key,value){return key==='returns'?Number(value).toLocaleString(undefined,{maximumFractionDigits:2}):value}
 function matchesGlobalSearch(r){if(!globalQuery)return true;const hay=[r.name,r.item,r.state,r.zone,r.line,MONTH_LABELS[r.month]].join(' ').toLowerCase();return hay.includes(globalQuery)}
 function passes(r,excludeKey=null){return matchesGlobalSearch(r)&&FILTERS.every(([k])=>k===excludeKey||selections[k].size===0||selections[k].has(valueForFilter(r,k)))}
 function filtered(){return rawData.filter(r=>passes(r))}
@@ -36,13 +37,12 @@ function initFilters(){
   $('filters').innerHTML='';
   FILTERS.forEach(([key,label])=>{
     const box=document.createElement('div');box.className='filter-box';
-    box.innerHTML=`<label>${label}</label><input class="filter-search" id="fs-${key}" type="search" placeholder="Search ${label.toLowerCase()}…" autocomplete="off"><select id="f-${key}" multiple></select><div class="filter-actions"><button class="filter-mini-btn primary" data-action="select" type="button">Select visible</button><button class="filter-mini-btn" data-action="clear" type="button">Clear</button></div>`;
+    box.innerHTML=`<label>${label}</label><input class="filter-search" id="fs-${key}" type="search" placeholder="Search ${label.toLowerCase()}…" autocomplete="off"><div id="f-${key}" class="filter-options" role="group" aria-label="${label}"></div><div class="filter-actions"><button class="filter-mini-btn primary" data-action="select" type="button">Select visible</button><button class="filter-mini-btn" data-action="clear" type="button">Clear</button></div>`;
     $('filters').appendChild(box);
-    box.querySelector('select').addEventListener('change',e=>{selections[key]=new Set([...e.target.selectedOptions].map(o=>o.value));updateAll()});
     box.querySelector('input').addEventListener('input',e=>{filterSearches[key]=norm(e.target.value);renderFilterOptions(key)});
     box.querySelector('[data-action="select"]').addEventListener('click',()=>{
-      const sel=$(`f-${key}`);
-      selections[key]=new Set([...selections[key],...[...sel.options].map(o=>o.value)]);
+      const visible=[...box.querySelectorAll('.filter-check')].map(el=>el.dataset.value);
+      selections[key]=new Set([...selections[key],...visible]);
       updateAll();
     });
     box.querySelector('[data-action="clear"]').addEventListener('click',()=>{selections[key]=new Set();updateAll()});
@@ -55,24 +55,27 @@ function availableValues(key){
   return vals;
 }
 function renderFilterOptions(key){
-  const sel=$(`f-${key}`);if(!sel)return;
+  const list=$(`f-${key}`);if(!list)return;
   const keep=selections[key];const q=filterSearches[key];
   let vals=availableValues(key);
   if(q)vals=vals.filter(v=>norm(v).includes(q));
-  sel.innerHTML=vals.map(v=>`<option value="${escapeHtml(v)}" ${keep.has(v)?'selected':''}>${escapeHtml(key==='returns'?Number(v).toLocaleString(undefined,{maximumFractionDigits:2}):v)}</option>`).join('');
+  list.innerHTML=vals.length?vals.map((v,i)=>{
+    const id=`fc-${key}-${i}`;
+    return `<label class="filter-check ${keep.has(v)?'is-selected':''}" for="${id}" data-value="${escapeHtml(v)}"><input id="${id}" type="checkbox" ${keep.has(v)?'checked':''}><span class="check-box" aria-hidden="true"></span><span class="check-text">${escapeHtml(displayFilterValue(key,v))}</span></label>`;
+  }).join(''):'<div class="filter-empty">No matching options</div>';
+  list.querySelectorAll('.filter-check input').forEach(input=>input.addEventListener('change',e=>{
+    const row=e.currentTarget.closest('.filter-check');const value=row.dataset.value;
+    if(e.currentTarget.checked)selections[key].add(value);else selections[key].delete(value);
+    updateAll();
+  }));
 }
 function refreshFilterOptions(){FILTERS.forEach(([key])=>renderFilterOptions(key))}
 function renderSelectionsUI(){
-  const chips=[];
-  let count=0;
-  FILTERS.forEach(([key,label])=>{
-    selections[key].forEach(value=>{count++;chips.push(`<span class="filter-chip"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(key==='returns'?Number(value).toLocaleString(undefined,{maximumFractionDigits:2}):value)} <button type="button" data-filter="${key}" data-value="${escapeHtml(value)}" aria-label="Remove">×</button></span>`)});
-  });
+  const chips=[];let count=0;
+  FILTERS.forEach(([key,label])=>{selections[key].forEach(value=>{count++;chips.push(`<span class="filter-chip"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(displayFilterValue(key,value))} <button type="button" data-filter="${key}" data-value="${escapeHtml(value)}" aria-label="Remove">×</button></span>`)})});
   $('selectionCount').textContent=`${count} selected`;
   $('selectedChips').innerHTML=chips.join('');
-  $('selectedChips').querySelectorAll('button').forEach(btn=>btn.addEventListener('click',()=>{
-    selections[btn.dataset.filter].delete(btn.dataset.value);updateAll();
-  }));
+  $('selectedChips').querySelectorAll('button').forEach(btn=>btn.addEventListener('click',()=>{selections[btn.dataset.filter].delete(btn.dataset.value);updateAll()}));
 }
 
 function sum(arr,key){return arr.reduce((a,r)=>a+(r[key]||0),0)}
@@ -104,5 +107,7 @@ $('clearSelections').addEventListener('click',()=>{selections=Object.fromEntries
 $('excelFiles').addEventListener('change',async e=>{const files=[...e.target.files];if(!files.length)return;try{$('dataStatus').textContent='Reading Excel files…';const groups=await Promise.all(files.map(rowsFromExcel));loadRows(groups.flat(),`${files.length} Excel file${files.length>1?'s':''}`)}catch(err){console.error(err);$('dataStatus').textContent=err.message||'Excel load failed'}});
 $('csvFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;Papa.parse(f,{header:true,skipEmptyLines:true,complete:r=>loadRows(r.data,f.name)})});
 $('resetFilters').addEventListener('click',()=>{resetSelectionState();updateAll()});
-$('growthState').addEventListener('change',()=>renderGrowthTables(customerStats(filtered())));$('declineState').addEventListener('change',()=>renderGrowthTables(customerStats(filtered())));
-initFilters();renderSelectionsUI();
+$('growthState').addEventListener('change',()=>renderGrowthTables(customerStats(filtered())));
+$('declineState').addEventListener('change',()=>renderGrowthTables(customerStats(filtered())));
+initFilters();
+renderSelectionsUI();
