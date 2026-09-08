@@ -1,6 +1,11 @@
 const FILTERS = [
   ['zone','Zone'],['state','State'],['name','Customer Name'],['line','Line Name'],['item','Item Name'],['returns','Sales Return Value']
 ];
+const MONTHS = {
+  january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,
+  september:9,october:10,november:11,december:12,
+  jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,aug:8,sep:9,sept:9,oct:10,nov:11,dec:12
+};
 let rawData = [];
 let selections = Object.fromEntries(FILTERS.map(([k])=>[k,new Set()]));
 
@@ -15,22 +20,28 @@ function rowValue(row, aliases){
   const target = keys.find(k=>aliases.includes(norm(k)));
   return target ? row[target] : '';
 }
+function monthNumber(v){
+  const s=norm(v);
+  if(MONTHS[s]) return MONTHS[s];
+  const n=parseInt(s,10);
+  return Number.isFinite(n)?n:null;
+}
 function normalizeRow(r){
-  const dateRaw=rowValue(r,['date','invoice date','sales date','order date']);
-  const yearRaw=rowValue(r,['year','sales year']);
-  const monthRaw=rowValue(r,['month','month no','month number']);
-  let d=dateRaw?new Date(dateRaw):null;
-  let year = yearRaw ? parseInt(yearRaw) : (d && !isNaN(d) ? d.getFullYear() : null);
-  let month = monthRaw ? parseInt(monthRaw) : (d && !isNaN(d) ? d.getMonth()+1 : null);
+  const year = parseInt(rowValue(r,['year','sales year']),10);
+  const month = monthNumber(rowValue(r,['month','month no','month number']));
+  const net = num(rowValue(r,['net amount (invoiced)','net amount','sales value','net sales','sales','sales amount','amount']));
+  const gross = num(rowValue(r,['sold amount (invoiced)','gross sales','sold amount','gross amount']));
+  const returned = Math.abs(num(rowValue(r,['returned amount (invoiced)','sales return value','return value','returns','sales returns','return amount'])));
   return {
     year, month,
-    zone:String(rowValue(r,['zone','sales zone','region'])||'Unknown').trim(),
+    zone:String(rowValue(r,['zone name','zone','sales zone','region'])||'Unknown').trim(),
     state:String(rowValue(r,['state','sales state','province'])||'Unknown').trim(),
     name:String(rowValue(r,['name','customer name','customer','client name'])||'Unknown').trim(),
     line:String(rowValue(r,['line name','line','product line'])||'Unknown').trim(),
     item:String(rowValue(r,['item name','item','product name','sku name'])||'Unknown').trim(),
-    sales:num(rowValue(r,['sales value','sales','net sales','sales amount','amount'])),
-    returns:num(rowValue(r,['sales return value','return value','returns','sales returns','return amount']))
+    sales:net,
+    grossSales:gross || Math.max(net,0),
+    returns:returned
   };
 }
 
@@ -47,16 +58,17 @@ function initFilters(){
   });
 }
 
-function valueForFilter(r,key){ return key==='returns'?String(r.returns):String(r[key]); }
+function returnFilterValue(v){ return Number(v).toFixed(2); }
+function valueForFilter(r,key){ return key==='returns'?returnFilterValue(r.returns):String(r[key]); }
 function passes(r,excludeKey=null){
   return FILTERS.every(([k])=> k===excludeKey || selections[k].size===0 || selections[k].has(valueForFilter(r,k)));
 }
-function refreshFilterOptions(changedKey){
+function refreshFilterOptions(){
   FILTERS.forEach(([key])=>{
     const sel=$(`f-${key}`); const keep=selections[key];
     const vals=[...new Set(rawData.filter(r=>passes(r,key)).map(r=>valueForFilter(r,key)))];
     vals.sort((a,b)=>key==='returns'?Number(a)-Number(b):a.localeCompare(b));
-    sel.innerHTML=vals.map(v=>`<option value="${escapeHtml(v)}" ${keep.has(v)?'selected':''}>${escapeHtml(v)}</option>`).join('');
+    sel.innerHTML=vals.map(v=>`<option value="${escapeHtml(v)}" ${keep.has(v)?'selected':''}>${escapeHtml(key==='returns'?Number(v).toLocaleString(undefined,{maximumFractionDigits:2}):v)}</option>`).join('');
     selections[key]=new Set([...keep].filter(v=>vals.includes(v)));
   });
 }
@@ -73,22 +85,28 @@ function plot(id,data,layout={}){
 
 function customerStats(data){
   const m=new Map();
-  data.forEach(r=>{const k=`${r.state}|||${r.name}|||${r.zone}`; if(!m.has(k))m.set(k,{state:r.state,name:r.name,zone:r.zone,y25:0,y26:0,ret26:0}); const x=m.get(k); if(r.year===2025)x.y25+=r.sales; if(r.year===2026){x.y26+=r.sales;x.ret26+=r.returns;}});
-  return [...m.values()].map(x=>({...x,growth:x.y25>0?((x.y26-x.y25)/x.y25)*100:null,returnRate:x.y26>0?(x.ret26/x.y26)*100:null}));
+  data.forEach(r=>{
+    const k=`${r.state}|||${r.name}|||${r.zone}`;
+    if(!m.has(k))m.set(k,{state:r.state,name:r.name,zone:r.zone,y25:0,y26:0,ret26:0,gross26:0});
+    const x=m.get(k);
+    if(r.year===2025)x.y25+=r.sales;
+    if(r.year===2026){x.y26+=r.sales;x.ret26+=r.returns;x.gross26+=r.grossSales;}
+  });
+  return [...m.values()].map(x=>({...x,growth:x.y25>0?((x.y26-x.y25)/x.y25)*100:null,returnRate:x.gross26>0?(x.ret26/x.gross26)*100:null}));
 }
 
 function updateKPIs(data){
   const y25=data.filter(r=>r.year===2025), y26=data.filter(r=>r.year===2026);
-  const s25=sum(y25,'sales'),s26=sum(y26,'sales'),ret=sum(y26,'returns');
+  const s25=sum(y25,'sales'),s26=sum(y26,'sales'),ret=sum(y26,'returns'),gross=sum(y26,'grossSales');
   $('kpi2025').textContent=fmt(s25); $('kpi2026').textContent=fmt(s26);
   $('kpiGrowth').textContent=s25>0?pct((s26-s25)/s25*100):'—';
-  $('kpiReturns').textContent=fmt(ret); $('kpiReturnRate').textContent=s26>0?`${(ret/s26*100).toFixed(2)}%`:'—';
+  $('kpiReturns').textContent=fmt(ret); $('kpiReturnRate').textContent=gross>0?`${(ret/gross*100).toFixed(2)}%`:'—';
   $('kpi10k').textContent=fmt(customerStats(data).filter(x=>x.y26>=10000).length);
 }
 
 function updateCharts(data){
-  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const monthly=year=>Array.from({length:12},(_,i)=>data.filter(r=>r.year===year&&r.month===i+1).reduce((a,r)=>a+r.sales,0));
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug'];
+  const monthly=year=>Array.from({length:8},(_,i)=>data.filter(r=>r.year===year&&r.month===i+1).reduce((a,r)=>a+r.sales,0));
   plot('monthlyChart',[{x:months,y:monthly(2025),type:'scatter',mode:'lines+markers',name:'2025',line:{width:3}},{x:months,y:monthly(2026),type:'scatter',mode:'lines+markers',name:'2026',line:{width:3}}]);
 
   const zone26=[...groupSum(data,'zone','sales',2026)].sort((a,b)=>b[1]-a[1]);
@@ -99,14 +117,15 @@ function updateCharts(data){
   plot('itemChart',[{x:item26.map(x=>x[1]),y:item26.map(x=>x[0]),type:'bar',orientation:'h'}],{showlegend:false,margin:{l:125,r:18,t:20,b:45}});
 
   const zones=[...new Set(data.map(r=>r.zone))];
-  const rr=zones.map(z=>{const d=data.filter(r=>r.zone===z&&r.year===2026);const s=sum(d,'sales');return [z,s?sum(d,'returns')/s*100:0]}).sort((a,b)=>b[1]-a[1]);
+  const rr=zones.map(z=>{const d=data.filter(r=>r.zone===z&&r.year===2026);const gross=sum(d,'grossSales');return [z,gross?sum(d,'returns')/gross*100:0]}).sort((a,b)=>b[1]-a[1]);
   plot('returnZoneChart',[{x:rr.map(x=>x[0]),y:rr.map(x=>x[1]),type:'bar'}],{showlegend:false,yaxis:{ticksuffix:'%',gridcolor:'rgba(255,255,255,.06)'}});
 }
 
 function stateOptions(stats){
   const states=[...new Set(stats.map(x=>x.state))].sort();
   ['growthState','declineState'].forEach(id=>{
-    const old=$(id).value; $(id).innerHTML=['All States',...states].map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    const old=$(id).value;
+    $(id).innerHTML=['All States',...states].map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
     if([...$(id).options].some(o=>o.value===old))$(id).value=old;
   });
 }
@@ -125,26 +144,56 @@ function render10k(stats){
   $('tenKCount').textContent=`${arr.length} customers`;
   $('tenKTable').innerHTML=arr.length?arr.map((x,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(x.name)}</td><td>${escapeHtml(x.state)}</td><td>${escapeHtml(x.zone)}</td><td>${fmt(x.y25)}</td><td>${fmt(x.y26)}</td><td class="${(x.growth??0)>=0?'pos':'neg'}">${pct(x.growth)}</td><td>${fmt(x.ret26)}</td><td>${x.returnRate!==null?x.returnRate.toFixed(2)+'%':'—'}</td></tr>`).join(''):`<tr><td colspan="9">No customers at or above 10,000</td></tr>`;
 }
-function updateAll(changedKey=null){
+function updateAll(){
   if(!rawData.length)return;
-  refreshFilterOptions(changedKey); const data=filtered();
+  refreshFilterOptions(); const data=filtered();
   updateKPIs(data); updateCharts(data); const stats=customerStats(data); renderGrowthTables(stats); render10k(stats);
   $('dataStatus').textContent=`${data.length.toLocaleString()} / ${rawData.length.toLocaleString()} rows`;
   $('emptyState').classList.add('hidden');
 }
 function loadRows(rows,source){
-  rawData=rows.map(normalizeRow).filter(r=>[2025,2026].includes(r.year));
+  rawData=rows.map(normalizeRow).filter(r=>[2025,2026].includes(r.year)&&r.month>=1&&r.month<=8);
   selections=Object.fromEntries(FILTERS.map(([k])=>[k,new Set()]));
-  if(!rawData.length){$('dataStatus').textContent='No valid 2025/2026 rows';return;}
+  if(!rawData.length){$('dataStatus').textContent='No valid Jan–Aug 2025/2026 rows';return;}
   $('dataStatus').textContent=`${source} • ${rawData.length.toLocaleString()} rows`; updateAll();
 }
 
+function findDataSheet(workbook){
+  for(const sheetName of workbook.SheetNames){
+    const ws=workbook.Sheets[sheetName];
+    const preview=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',range:0,raw:false}).slice(0,6);
+    for(let i=0;i<preview.length;i++){
+      const h=preview[i].map(norm);
+      const hasYear=h.includes('year'), hasName=h.includes('name'), hasState=h.includes('state');
+      const hasItem=h.includes('item name'), hasNet=h.includes('net amount (invoiced)');
+      if(hasYear&&hasName&&hasState&&hasItem&&hasNet) return {ws,sheetName,headerRow:i};
+    }
+  }
+  return null;
+}
+async function rowsFromExcel(file){
+  const buffer=await file.arrayBuffer();
+  const wb=XLSX.read(buffer,{type:'array',cellDates:false});
+  const found=findDataSheet(wb);
+  if(!found) throw new Error(`Could not find sales sheet in ${file.name}`);
+  const rows=XLSX.utils.sheet_to_json(found.ws,{range:found.headerRow,defval:'',raw:true});
+  return rows;
+}
+
+$('excelFiles').addEventListener('change',async e=>{
+  const files=[...e.target.files];
+  if(!files.length)return;
+  try{
+    $('dataStatus').textContent='Reading Excel files…';
+    const groups=await Promise.all(files.map(rowsFromExcel));
+    loadRows(groups.flat(),`${files.length} Excel file${files.length>1?'s':''}`);
+  }catch(err){
+    console.error(err); $('dataStatus').textContent=err.message||'Excel load failed';
+  }
+});
 $('csvFile').addEventListener('change',e=>{const f=e.target.files[0]; if(!f)return; Papa.parse(f,{header:true,skipEmptyLines:true,complete:r=>loadRows(r.data,f.name)});});
 $('resetFilters').addEventListener('click',()=>{selections=Object.fromEntries(FILTERS.map(([k])=>[k,new Set()]));updateAll();});
 $('growthState').addEventListener('change',()=>renderGrowthTables(customerStats(filtered())));
 $('declineState').addEventListener('change',()=>renderGrowthTables(customerStats(filtered())));
 
 initFilters();
-fetch('data/sales.csv').then(r=>{if(!r.ok)throw new Error();return r.text()}).then(t=>Papa.parse(t,{header:true,skipEmptyLines:true,complete:r=>loadRows(r.data,'data/sales.csv')})).catch(()=>{
-  fetch('data/sample-sales.csv').then(r=>r.ok?r.text():Promise.reject()).then(t=>Papa.parse(t,{header:true,skipEmptyLines:true,complete:r=>{loadRows(r.data,'Demo data');$('dataStatus').textContent='Demo data • upload your CSV';}})).catch(()=>{});
-});
