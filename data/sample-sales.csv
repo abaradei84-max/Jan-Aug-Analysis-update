@@ -1,0 +1,17 @@
+date,zone,state,name,line name,item name,sales value,sales return value
+2025-01-15,North,State A,Customer Alpha,Line 1,Item A,12000,240
+2026-01-15,North,State A,Customer Alpha,Line 1,Item A,15000,180
+2025-02-10,North,State A,Customer Beta,Line 1,Item B,9000,90
+2026-02-10,North,State A,Customer Beta,Line 1,Item B,7200,160
+2025-03-12,South,State B,Customer Gamma,Line 2,Item C,16000,400
+2026-03-12,South,State B,Customer Gamma,Line 2,Item C,21000,300
+2025-04-05,South,State B,Customer Delta,Line 2,Item D,14000,210
+2026-04-05,South,State B,Customer Delta,Line 2,Item D,11000,330
+2025-05-20,East,State C,Customer Epsilon,Line 3,Item E,8000,80
+2026-05-20,East,State C,Customer Epsilon,Line 3,Item E,10000,120
+2025-06-18,East,State C,Customer Zeta,Line 3,Item F,20000,500
+2026-06-18,East,State C,Customer Zeta,Line 3,Item F,23000,460
+2025-07-09,West,State D,Customer Eta,Line 4,Item G,11500,140
+2026-07-09,West,State D,Customer Eta,Line 4,Item G,13500,110
+2025-08-22,West,State D,Customer Theta,Line 4,Item H,18000,360
+2026-08-22,West,State D,Customer Theta,Line 4,Item H,14000,420
