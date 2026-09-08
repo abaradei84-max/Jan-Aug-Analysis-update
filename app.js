@@ -1,7 +1,7 @@
 const FILTERS = [
   ['month','Month'],['zone','Zone'],['state','State'],['name','Customer Name'],['line','Line Name'],['item','Item Name'],['returns','Sales Return Value']
 ];
-const MONTHS = {january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12,jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,aug:8,sep:9,sept:9,oct:10,nov:11,dec:12};
+const MONTHS={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12,jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,aug:8,sep:9,sept:9,oct:10,nov:11,dec:12};
 const MONTH_LABELS=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 let rawData=[];
 let selections=Object.fromEntries(FILTERS.map(([k])=>[k,new Set()]));
@@ -23,7 +23,16 @@ function normalizeRow(r){
   const net=num(rowValue(r,['net amount (invoiced)','net amount','sales value','net sales','sales','sales amount','amount']));
   const gross=num(rowValue(r,['sold amount (invoiced)','gross sales','sold amount','gross amount']));
   const returned=Math.abs(num(rowValue(r,['returned amount (invoiced)','sales return value','return value','returns','sales returns','return amount'])));
-  return {year,month,zone:String(rowValue(r,['zone name','zone','sales zone','region'])||'Unknown').trim(),state:String(rowValue(r,['state','sales state','province'])||'Unknown').trim(),name:String(rowValue(r,['name','customer name','customer','client name'])||'Unknown').trim(),line:String(rowValue(r,['line name','line','product line'])||'Unknown').trim(),item:String(rowValue(r,['item name','item','product name','sku name'])||'Unknown').trim(),sales:net,grossSales:gross||Math.max(net,0),returns:returned};
+  const netQty=num(rowValue(r,['net qty (invoiced)','net qty','net quantity','net quantity (invoiced)']));
+  return {
+    year,month,
+    zone:String(rowValue(r,['zone name','zone','sales zone','region'])||'Unknown').trim(),
+    state:String(rowValue(r,['state','sales state','province'])||'Unknown').trim(),
+    name:String(rowValue(r,['name','customer name','customer','client name'])||'Unknown').trim(),
+    line:String(rowValue(r,['line name','line','product line'])||'Unknown').trim(),
+    item:String(rowValue(r,['item name','item','product name','sku name'])||'Unknown').trim(),
+    sales:net,grossSales:gross||Math.max(net,0),returns:returned,netQty
+  };
 }
 function escapeHtml(s){return String(s).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]||c))}
 function returnFilterValue(v){return Number(v).toFixed(2)}
@@ -40,11 +49,7 @@ function initFilters(){
     box.innerHTML=`<label>${label}</label><input class="filter-search" id="fs-${key}" type="search" placeholder="Search ${label.toLowerCase()}…" autocomplete="off"><div id="f-${key}" class="filter-options" role="group" aria-label="${label}"></div><div class="filter-actions"><button class="filter-mini-btn primary" data-action="select" type="button">Select visible</button><button class="filter-mini-btn" data-action="clear" type="button">Clear</button></div>`;
     $('filters').appendChild(box);
     box.querySelector('input').addEventListener('input',e=>{filterSearches[key]=norm(e.target.value);renderFilterOptions(key)});
-    box.querySelector('[data-action="select"]').addEventListener('click',()=>{
-      const visible=[...box.querySelectorAll('.filter-check')].map(el=>el.dataset.value);
-      selections[key]=new Set([...selections[key],...visible]);
-      updateAll();
-    });
+    box.querySelector('[data-action="select"]').addEventListener('click',()=>{const visible=[...box.querySelectorAll('.filter-check')].map(el=>el.dataset.value);selections[key]=new Set([...selections[key],...visible]);updateAll()});
     box.querySelector('[data-action="clear"]').addEventListener('click',()=>{selections[key]=new Set();updateAll()});
   });
 }
@@ -56,25 +61,16 @@ function availableValues(key){
 }
 function renderFilterOptions(key){
   const list=$(`f-${key}`);if(!list)return;
-  const keep=selections[key];const q=filterSearches[key];
-  let vals=availableValues(key);
+  const keep=selections[key];const q=filterSearches[key];let vals=availableValues(key);
   if(q)vals=vals.filter(v=>norm(v).includes(q));
-  list.innerHTML=vals.length?vals.map((v,i)=>{
-    const id=`fc-${key}-${i}`;
-    return `<label class="filter-check ${keep.has(v)?'is-selected':''}" for="${id}" data-value="${escapeHtml(v)}"><input id="${id}" type="checkbox" ${keep.has(v)?'checked':''}><span class="check-box" aria-hidden="true"></span><span class="check-text">${escapeHtml(displayFilterValue(key,v))}</span></label>`;
-  }).join(''):'<div class="filter-empty">No matching options</div>';
-  list.querySelectorAll('.filter-check input').forEach(input=>input.addEventListener('change',e=>{
-    const row=e.currentTarget.closest('.filter-check');const value=row.dataset.value;
-    if(e.currentTarget.checked)selections[key].add(value);else selections[key].delete(value);
-    updateAll();
-  }));
+  list.innerHTML=vals.length?vals.map((v,i)=>{const id=`fc-${key}-${i}`;return `<label class="filter-check ${keep.has(v)?'is-selected':''}" for="${id}" data-value="${escapeHtml(v)}"><input id="${id}" type="checkbox" ${keep.has(v)?'checked':''}><span class="check-box" aria-hidden="true"></span><span class="check-text">${escapeHtml(displayFilterValue(key,v))}</span></label>`}).join(''):'<div class="filter-empty">No matching options</div>';
+  list.querySelectorAll('.filter-check input').forEach(input=>input.addEventListener('change',e=>{const row=e.currentTarget.closest('.filter-check');const value=row.dataset.value;if(e.currentTarget.checked)selections[key].add(value);else selections[key].delete(value);updateAll()}));
 }
 function refreshFilterOptions(){FILTERS.forEach(([key])=>renderFilterOptions(key))}
 function renderSelectionsUI(){
   const chips=[];let count=0;
   FILTERS.forEach(([key,label])=>{selections[key].forEach(value=>{count++;chips.push(`<span class="filter-chip"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(displayFilterValue(key,value))} <button type="button" data-filter="${key}" data-value="${escapeHtml(value)}" aria-label="Remove">×</button></span>`)})});
-  $('selectionCount').textContent=`${count} selected`;
-  $('selectedChips').innerHTML=chips.join('');
+  $('selectionCount').textContent=`${count} selected`;$('selectedChips').innerHTML=chips.join('');
   $('selectedChips').querySelectorAll('button').forEach(btn=>btn.addEventListener('click',()=>{selections[btn.dataset.filter].delete(btn.dataset.value);updateAll()}));
 }
 
@@ -82,14 +78,27 @@ function sum(arr,key){return arr.reduce((a,r)=>a+(r[key]||0),0)}
 function groupSum(data,key,metric='sales',year=null){const m=new Map();data.filter(r=>year===null||r.year===year).forEach(r=>m.set(r[key],(m.get(r[key])||0)+r[metric]));return m}
 function plot(id,data,layout={}){Plotly.react(id,data,{paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',font:{color:'#b7c3df',family:'Inter'},margin:{l:48,r:18,t:20,b:48},legend:{orientation:'h',y:1.12},xaxis:{gridcolor:'rgba(255,255,255,.06)',zerolinecolor:'rgba(255,255,255,.08)'},yaxis:{gridcolor:'rgba(255,255,255,.06)',zerolinecolor:'rgba(255,255,255,.08)'},...layout},{responsive:true,displaylogo:false})}
 function customerStats(data){const m=new Map();data.forEach(r=>{const k=`${r.state}|||${r.name}|||${r.zone}`;if(!m.has(k))m.set(k,{state:r.state,name:r.name,zone:r.zone,y25:0,y26:0,ret26:0,gross26:0});const x=m.get(k);if(r.year===2025)x.y25+=r.sales;if(r.year===2026){x.y26+=r.sales;x.ret26+=r.returns;x.gross26+=r.grossSales}});return [...m.values()].map(x=>({...x,growth:x.y25>0?((x.y26-x.y25)/x.y25)*100:null,returnRate:x.gross26>0?(x.ret26/x.gross26)*100:null}))}
-function updateKPIs(data){const y25=data.filter(r=>r.year===2025),y26=data.filter(r=>r.year===2026);const s25=sum(y25,'sales'),s26=sum(y26,'sales'),ret=sum(y26,'returns'),gross=sum(y26,'grossSales');$('kpi2025').textContent=fmt(s25);$('kpi2026').textContent=fmt(s26);$('kpiGrowth').textContent=s25>0?pct((s26-s25)/s25*100):'—';$('kpiReturns').textContent=fmt(ret);$('kpiReturnRate').textContent=gross>0?`${(ret/gross*100).toFixed(2)}%`:'—';$('kpi10k').textContent=fmt(customerStats(data).filter(x=>x.y26>=10000).length)}
+function updateKPIs(data){
+  const y25=data.filter(r=>r.year===2025),y26=data.filter(r=>r.year===2026);
+  const s25=sum(y25,'sales'),s26=sum(y26,'sales'),ret=sum(y26,'returns'),gross=sum(y26,'grossSales');
+  const q25=sum(y25,'netQty'),q26=sum(y26,'netQty');
+  $('kpi2025').textContent=fmt(s25);$('kpi2026').textContent=fmt(s26);$('kpiGrowth').textContent=s25>0?pct((s26-s25)/s25*100):'—';
+  $('kpiReturns').textContent=fmt(ret);$('kpiReturnRate').textContent=gross>0?`${(ret/gross*100).toFixed(2)}%`:'—';$('kpi10k').textContent=fmt(customerStats(data).filter(x=>x.y26>=10000).length);
+  $('kpiQty2025').textContent=fmt(q25);$('kpiQty2026').textContent=fmt(q26);$('kpiQtyGrowth').textContent=q25!==0?pct((q26-q25)/Math.abs(q25)*100):'—';
+}
 function updateCharts(data){
-  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug'];const monthly=year=>Array.from({length:8},(_,i)=>data.filter(r=>r.year===year&&r.month===i+1).reduce((a,r)=>a+r.sales,0));
-  plot('monthlyChart',[{x:months,y:monthly(2025),type:'scatter',mode:'lines+markers',name:'2025',line:{width:3}},{x:months,y:monthly(2026),type:'scatter',mode:'lines+markers',name:'2026',line:{width:3}}]);
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug'];
+  const monthly=(year,metric)=>Array.from({length:8},(_,i)=>data.filter(r=>r.year===year&&r.month===i+1).reduce((a,r)=>a+(r[metric]||0),0));
+  plot('monthlyChart',[{x:months,y:monthly(2025,'sales'),type:'scatter',mode:'lines+markers',name:'2025',line:{width:3}},{x:months,y:monthly(2026,'sales'),type:'scatter',mode:'lines+markers',name:'2026',line:{width:3}}]);
   const zone26=[...groupSum(data,'zone','sales',2026)].sort((a,b)=>b[1]-a[1]);plot('zoneChart',[{x:zone26.map(x=>x[0]),y:zone26.map(x=>x[1]),type:'bar'}],{showlegend:false});
   const state26=[...groupSum(data,'state','sales',2026)].sort((a,b)=>b[1]-a[1]).slice(0,20);plot('stateChart',[{x:state26.map(x=>x[1]),y:state26.map(x=>x[0]),type:'bar',orientation:'h'}],{showlegend:false,margin:{l:90,r:18,t:20,b:45}});
   const item26=[...groupSum(data,'item','sales',2026)].sort((a,b)=>b[1]-a[1]).slice(0,15);plot('itemChart',[{x:item26.map(x=>x[1]),y:item26.map(x=>x[0]),type:'bar',orientation:'h'}],{showlegend:false,margin:{l:125,r:18,t:20,b:45}});
-  const zones=[...new Set(data.map(r=>r.zone))];const rr=zones.map(z=>{const d=data.filter(r=>r.zone===z&&r.year===2026);const gross=sum(d,'grossSales');return [z,gross?sum(d,'returns')/gross*100:0]}).sort((a,b)=>b[1]-a[1]);plot('returnZoneChart',[{x:rr.map(x=>x[0]),y:rr.map(x=>x[1]),type:'bar'}],{showlegend:false,yaxis:{ticksuffix:'%',gridcolor:'rgba(255,255,255,.06)'}})
+  const zones=[...new Set(data.map(r=>r.zone))];const rr=zones.map(z=>{const d=data.filter(r=>r.zone===z&&r.year===2026);const g=sum(d,'grossSales');return [z,g?sum(d,'returns')/g*100:0]}).sort((a,b)=>b[1]-a[1]);plot('returnZoneChart',[{x:rr.map(x=>x[0]),y:rr.map(x=>x[1]),type:'bar'}],{showlegend:false,yaxis:{ticksuffix:'%',gridcolor:'rgba(255,255,255,.06)'}});
+
+  plot('monthlyQtyChart',[{x:months,y:monthly(2025,'netQty'),type:'scatter',mode:'lines+markers',name:'2025 Net Qty',line:{width:3}},{x:months,y:monthly(2026,'netQty'),type:'scatter',mode:'lines+markers',name:'2026 Net Qty',line:{width:3}}]);
+  const qtyZone=[...groupSum(data,'zone','netQty',2026)].sort((a,b)=>b[1]-a[1]);plot('qtyZoneChart',[{x:qtyZone.map(x=>x[0]),y:qtyZone.map(x=>x[1]),type:'bar'}],{showlegend:false});
+  const qtyState=[...groupSum(data,'state','netQty',2026)].sort((a,b)=>b[1]-a[1]).slice(0,20);plot('qtyStateChart',[{x:qtyState.map(x=>x[1]),y:qtyState.map(x=>x[0]),type:'bar',orientation:'h'}],{showlegend:false,margin:{l:90,r:18,t:20,b:45}});
+  const qtyItem=[...groupSum(data,'item','netQty',2026)].sort((a,b)=>b[1]-a[1]).slice(0,15);plot('qtyItemChart',[{x:qtyItem.map(x=>x[1]),y:qtyItem.map(x=>x[0]),type:'bar',orientation:'h'}],{showlegend:false,margin:{l:125,r:18,t:20,b:45}});
 }
 function stateOptions(stats){const states=[...new Set(stats.map(x=>x.state))].sort();['growthState','declineState'].forEach(id=>{const old=$(id).value;$(id).innerHTML=['All States',...states].map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');if([...$(id).options].some(o=>o.value===old))$(id).value=old})}
 function renderGrowthTables(stats){stateOptions(stats);const render=(id,state,kind)=>{let arr=stats.filter(x=>state==='All States'||x.state===state).filter(x=>x.growth!==null);if(kind==='growth')arr=arr.filter(x=>x.growth>=10).sort((a,b)=>b.growth-a.growth).slice(0,10);else arr=arr.filter(x=>x.growth<=-10).sort((a,b)=>a.growth-b.growth).slice(0,10);$(id).innerHTML=arr.length?arr.map((x,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(x.name)}</td><td>${fmt(x.y25)}</td><td>${fmt(x.y26)}</td><td class="${kind==='growth'?'pos':'neg'}">${pct(x.growth)}</td></tr>`).join(''):`<tr><td colspan="5">No matching customers</td></tr>`};render('growthTable',$('growthState').value,'growth');render('declineTable',$('declineState').value,'decline')}
@@ -109,5 +118,6 @@ $('csvFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)retur
 $('resetFilters').addEventListener('click',()=>{resetSelectionState();updateAll()});
 $('growthState').addEventListener('change',()=>renderGrowthTables(customerStats(filtered())));
 $('declineState').addEventListener('change',()=>renderGrowthTables(customerStats(filtered())));
+
 initFilters();
 renderSelectionsUI();
