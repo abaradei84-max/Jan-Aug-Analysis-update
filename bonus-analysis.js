@@ -40,8 +40,8 @@ function updateBonusKPIs(data){
 }
 
 function updateBonusCharts(data){
-  const d=combinedRows(data); const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug'];
-  const monthly=(year,key)=>Array.from({length:8},(_,i)=>d.filter(r=>r.year===year&&r.month===i+1).reduce((a,r)=>a+(r[key]||0),0));
+  const d=combinedRows(data); const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'];
+  const monthly=(year,key)=>Array.from({length:9},(_,i)=>d.filter(r=>r.year===year&&r.month===i+1).reduce((a,r)=>a+(r[key]||0),0));
   if($('monthlyMoneyChart')) plot('monthlyMoneyChart',[
     {x:months,y:monthly(2025,'totalMoney'),type:'scatter',mode:'lines+markers',name:'2025',line:{width:3}},
     {x:months,y:monthly(2026,'totalMoney'),type:'scatter',mode:'lines+markers',name:'2026',line:{width:3}}
