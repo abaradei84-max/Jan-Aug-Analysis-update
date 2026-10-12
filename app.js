@@ -15,6 +15,13 @@ const pct=n=>Number.isFinite(n)?`${n>=0?'+':''}${n.toFixed(1)}%`:'—';
 const num=v=>{const x=parseFloat(String(v??'').replace(/,/g,'').replace(/[^0-9.-]/g,''));return Number.isFinite(x)?x:0};
 const norm=s=>String(s??'').trim().toLowerCase().replace(/[_-]+/g,' ').replace(/\s+/g,' ');
 
+function canonicalLine(value){
+  const raw=String(value??'').trim().replace(/\s+/g,' ');
+  const key=norm(raw);
+  if(key==='nno promoted'||key==='non promoted')return 'Non-Promoted';
+  if(key==='gl')return 'GL';
+  return raw||'Unknown';
+}
 function rowValue(row,aliases){const keys=Object.keys(row);const target=keys.find(k=>aliases.includes(norm(k)));return target?row[target]:''}
 function monthNumber(v){const s=norm(v);if(MONTHS[s])return MONTHS[s];const n=parseInt(s,10);return Number.isFinite(n)?n:null}
 function normalizeRow(r){
@@ -29,7 +36,7 @@ function normalizeRow(r){
     zone:String(rowValue(r,['zone name','zone','sales zone','region'])||'Unknown').trim(),
     state:String(rowValue(r,['state','sales state','province'])||'Unknown').trim(),
     name:String(rowValue(r,['name','customer name','customer','client name'])||'Unknown').trim(),
-    line:String(rowValue(r,['line name','line','product line'])||'Unknown').trim(),
+    line:canonicalLine(rowValue(r,['line name','line','product line'])),
     item:String(rowValue(r,['item name','item','product name','sku name'])||'Unknown').trim(),
     sales:net,grossSales:gross||Math.max(net,0),returns:returned,netQty
   };
