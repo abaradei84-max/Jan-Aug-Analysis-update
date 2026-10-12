@@ -72,7 +72,9 @@ function renderFilterOptions(key){
   if(q)vals=vals.filter(v=>norm(v).includes(q));
   const totalOptions=vals.length;
   if(vals.length>120) vals=vals.slice(0,120);
-  list.innerHTML=(totalOptions>120?`<div class="filter-empty">Showing first 120 of ${totalOptions.toLocaleString()} options. Search to narrow results.</div>`:'')+(vals.length?vals.map((v,i)=>{const id=`fc-${key}-${i}`;return `<label class="filter-check ${keep.has(v)?'is-selected':''}" for="${id}" data-value="${escapeHtml(v)}"><input id="${id}" type="checkbox" ${keep.has(v)?'checked':''}><span class="check-box" aria-hidden="true"></span><span class="check-text">${escapeHtml(displayFilterValue(key,v))}</span></label>`}).join('') :'<div class="filter-empty">No matching options</div>');
+  const lineYearCounts=new Map();
+  if(key==='line') for(const r of rawData){if(!passes(r,key))continue; const v=r.line; if(!lineYearCounts.has(v))lineYearCounts.set(v,[0,0]); lineYearCounts.get(v)[r.year===2026?1:0]++;}
+  list.innerHTML=(totalOptions>120?`<div class="filter-empty">Showing first 120 of ${totalOptions.toLocaleString()} options. Search to narrow results.</div>`:'')+(vals.length?vals.map((v,i)=>{const id=`fc-${key}-${i}`;return `<label class="filter-check ${keep.has(v)?'is-selected':''}" for="${id}" data-value="${escapeHtml(v)}"><input id="${id}" type="checkbox" ${keep.has(v)?'checked':''}><span class="check-box" aria-hidden="true"></span><span class="check-text">${escapeHtml(displayFilterValue(key,v))}${key==='line'&&lineYearCounts.has(v)?' (25: '+lineYearCounts.get(v)[0].toLocaleString()+' | 26: '+lineYearCounts.get(v)[1].toLocaleString()+')':''}</span></label>`}).join('') :'<div class="filter-empty">No matching options</div>');
   list.querySelectorAll('.filter-check input').forEach(input=>input.addEventListener('change',e=>{const row=e.currentTarget.closest('.filter-check');const value=row.dataset.value;if(e.currentTarget.checked)selections[key].add(value);else selections[key].delete(value);updateAll()}));
 }
 function refreshFilterOptions(){FILTERS.forEach(([key])=>renderFilterOptions(key))}
@@ -116,6 +118,7 @@ function updateAll(){if(!rawData.length){renderSelectionsUI();return}refreshFilt
   const status=$('dataStatus');
   status.textContent=`2025: ${n25.toLocaleString()} rows | 2026: ${n26.toLocaleString()} rows`;
   status.title=`${data.length.toLocaleString()} of ${rawData.length.toLocaleString()} rows after filters`;
+  if(n26===0&&selections.line.size){const n=rawData.filter(r=>r.year===2026&&selections.line.has(r.line)).length;if(n>0) status.textContent+=' | Line alone matches '+n.toLocaleString()+' 2026 rows: another active filter excludes them';}
   if(n26===0 && rawData.some(r=>r.year===2026)){
     const active=FILTERS.filter(([k])=>selections[k].size>0).map(([,label])=>label);
     const zoneOnly=rawData.filter(r=>r.year===2026 && (!selections.zone.size || selections.zone.has(r.zone)));
