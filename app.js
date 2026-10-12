@@ -63,7 +63,9 @@ function renderFilterOptions(key){
   const list=$(`f-${key}`);if(!list)return;
   const keep=selections[key];const q=filterSearches[key];let vals=availableValues(key);
   if(q)vals=vals.filter(v=>norm(v).includes(q));
-  list.innerHTML=vals.length?vals.map((v,i)=>{const id=`fc-${key}-${i}`;return `<label class="filter-check ${keep.has(v)?'is-selected':''}" for="${id}" data-value="${escapeHtml(v)}"><input id="${id}" type="checkbox" ${keep.has(v)?'checked':''}><span class="check-box" aria-hidden="true"></span><span class="check-text">${escapeHtml(displayFilterValue(key,v))}</span></label>`}).join(''):'<div class="filter-empty">No matching options</div>';
+  const totalOptions=vals.length;
+  if(vals.length>120) vals=vals.slice(0,120);
+  list.innerHTML=(totalOptions>120?`<div class="filter-empty">Showing first 120 of ${totalOptions.toLocaleString()} options. Search to narrow results.</div>`:'')+(vals.length?vals.map((v,i)=>{const id=`fc-${key}-${i}`;return `<label class="filter-check ${keep.has(v)?'is-selected':''}" for="${id}" data-value="${escapeHtml(v)}"><input id="${id}" type="checkbox" ${keep.has(v)?'checked':''}><span class="check-box" aria-hidden="true"></span><span class="check-text">${escapeHtml(displayFilterValue(key,v))}</span></label>`}).join('') :'<div class="filter-empty">No matching options</div>');
   list.querySelectorAll('.filter-check input').forEach(input=>input.addEventListener('change',e=>{const row=e.currentTarget.closest('.filter-check');const value=row.dataset.value;if(e.currentTarget.checked)selections[key].add(value);else selections[key].delete(value);updateAll()}));
 }
 function refreshFilterOptions(){FILTERS.forEach(([key])=>renderFilterOptions(key))}
@@ -114,7 +116,7 @@ $('clearSearch').addEventListener('click',()=>{$('globalSearch').value='';global
 $('toggleFilters').addEventListener('click',()=>{const wrap=$('filtersWrap');wrap.classList.toggle('collapsed');$('toggleFilters').textContent=wrap.classList.contains('collapsed')?'☷ Show Filters & Multi-select':'☷ Filters & Multi-select'});
 $('clearSelections').addEventListener('click',()=>{selections=Object.fromEntries(FILTERS.map(([k])=>[k,new Set()]));updateAll()});
 $('excelFiles').addEventListener('change',async e=>{const files=[...e.target.files];if(!files.length)return;try{$('dataStatus').textContent='Reading Excel files…';const groups=await Promise.all(files.map(rowsFromExcel));loadRows(groups.flat(),`${files.length} Excel file${files.length>1?'s':''}`)}catch(err){console.error(err);$('dataStatus').textContent=err.message||'Excel load failed'}});
-$('csvFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;Papa.parse(f,{header:true,skipEmptyLines:true,complete:r=>loadRows(r.data,f.name)})});
+$('csvFile').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;Papa.parse(f,{header:true,skipEmptyLines:true,worker:true,complete:r=>{if(r.errors?.length)console.warn('CSV parse warnings',r.errors.slice(0,5));loadRows(r.data,f.name)},error:err=>{$('dataStatus').textContent=err.message||'CSV load failed'}})});
 $('resetFilters').addEventListener('click',()=>{resetSelectionState();updateAll()});
 $('growthState').addEventListener('change',()=>renderGrowthTables(customerStats(filtered())));
 $('declineState').addEventListener('change',()=>renderGrowthTables(customerStats(filtered())));
