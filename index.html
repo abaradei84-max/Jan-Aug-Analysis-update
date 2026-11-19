@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="checkbox-filters.css" />
+  <link rel="stylesheet" href="styles.css?v=2026-10" />
+  <link rel="stylesheet" href="checkbox-filters.css?v=2026-10" />
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
@@ -17,7 +17,7 @@
 <body>
   <div class="bg-orb orb-a"></div><div class="bg-orb orb-b"></div><div class="bg-grid"></div>
   <header class="topbar glass">
-    <div><p class="eyebrow">SALES INTELLIGENCE • JAN–SEP</p><h1>2025 vs 2026 Sales Analysis</h1><p class="subtitle">Interactive customer, item, geography, quantity and returns performance dashboard.</p></div>
+    <div><p class="eyebrow">SALES INTELLIGENCE • JAN–OCT</p><h1>2025 vs 2026 Sales Analysis</h1><p class="subtitle">Interactive customer, item, geography, quantity and returns performance dashboard.</p></div>
     <div class="upload-wrap">
       <label class="upload-btn" for="excelFiles">Load Excel (2025 / 2026)</label><input id="excelFiles" type="file" accept=".xlsx,.xls" multiple hidden />
       <label class="ghost-btn" for="csvFile">Or CSV</label><input id="csvFile" type="file" accept=".csv,text/csv" hidden />
@@ -91,6 +91,6 @@
     <section class="glass table-card wide-table"><div class="card-title"><div><h3>Customers with Sales ≥ 10,000</h3><span>2026 Jan–Oct net sales, ranked highest first</span></div><span id="tenKCount" class="status-pill">0 customers</span></div><div class="table-scroll"><table><thead><tr><th>#</th><th>Customer</th><th>State</th><th>Zone</th><th>2025</th><th>2026</th><th>YoY</th><th>Returns</th><th>Return Rate</th></tr></thead><tbody id="tenKTable"></tbody></table></div></section>
     <section id="emptyState" class="glass empty-state"><h2>Load Excel files to activate the dashboard</h2><p>Select the 2026 workbook to see the current-year results; add a 2025 workbook for year-over-year comparisons. Processing happens only inside your browser; the Excel data is not uploaded to this public GitHub repository.</p><div class="schema-box"><strong>Mapped automatically</strong><span>Year • Month • Zone name • State • Name • Line Name • Item name • Net Qty • Net Bonus Qty • Net Amount • Sold Amount • Sold Qty • Returned Amount</span></div></section>
   </main>
-  <footer>Jan–Oct Analysis Update • Interactive GitHub Pages Dashboard</footer><script src="app.js"></script><script src="bonus-analysis.js"></script>
+  <footer>Jan–Oct Analysis Update • Interactive GitHub Pages Dashboard</footer><script src="app.js?v=2026-10"></script><script src="bonus-analysis.js?v=2026-10"></script>
 </body>
 </html>
