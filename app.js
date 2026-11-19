@@ -98,8 +98,8 @@ function updateKPIs(data){
   $('kpiQty2025').textContent=fmt(q25);$('kpiQty2026').textContent=fmt(q26);$('kpiQtyGrowth').textContent=q25!==0?pct((q26-q25)/Math.abs(q25)*100):'—';
 }
 function updateCharts(data){
-  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'];
-  const monthly=(year,metric)=>Array.from({length:9},(_,i)=>data.filter(r=>r.year===year&&r.month===i+1).reduce((a,r)=>a+(r[metric]||0),0));
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'];
+  const monthly=(year,metric)=>Array.from({length:10},(_,i)=>data.filter(r=>r.year===year&&r.month===i+1).reduce((a,r)=>a+(r[metric]||0),0));
   plot('monthlyChart',[{x:months,y:monthly(2025,'sales'),type:'scatter',mode:'lines+markers',name:'2025',line:{width:3}},{x:months,y:monthly(2026,'sales'),type:'scatter',mode:'lines+markers',name:'2026',line:{width:3}}]);
   const zone26=[...groupSum(data,'zone','sales',2026)].sort((a,b)=>b[1]-a[1]);plot('zoneChart',[{x:zone26.map(x=>x[0]),y:zone26.map(x=>x[1]),type:'bar'}],{showlegend:false});
   const state26=[...groupSum(data,'state','sales',2026)].sort((a,b)=>b[1]-a[1]).slice(0,20);plot('stateChart',[{x:state26.map(x=>x[1]),y:state26.map(x=>x[0]),type:'bar',orientation:'h'}],{showlegend:false,margin:{l:90,r:18,t:20,b:45}});
@@ -126,7 +126,7 @@ function updateAll(){if(!rawData.length){renderSelectionsUI();return}refreshFilt
     status.textContent+=` | Zone-only 2026: ${zoneOnly.length.toLocaleString()} (reset other filters)`;
   }$('emptyState').classList.add('hidden')}
 function resetSelectionState(){selections=Object.fromEntries(FILTERS.map(([k])=>[k,new Set()]));filterSearches=Object.fromEntries(FILTERS.map(([k])=>[k,'']));globalQuery='';$('globalSearch').value='';FILTERS.forEach(([k])=>{const el=$(`fs-${k}`);if(el)el.value=''})}
-function loadRows(rows,source){rawData=rows.map(normalizeRow).filter(r=>[2025,2026].includes(r.year)&&r.month>=1&&r.month<=9);resetSelectionState();const y25=rawData.filter(r=>r.year===2025).length,y26=rawData.length-y25;if(!rawData.length){$('dataStatus').textContent='No valid Jan–Sep 2025/2026 rows';renderSelectionsUI();return}if(!y25||!y26){$('dataStatus').textContent=`WARNING: ${source} contains 2025: ${y25.toLocaleString()} / 2026: ${y26.toLocaleString()} records. Load the combined CSV containing both years.`; }updateAll(); if(!y25||!y26){$('dataStatus').textContent=`WARNING: Only ${y25?'2025':'2026'} data loaded. Please load the verified combined CSV file.`;}}
+function loadRows(rows,source){rawData=rows.map(normalizeRow).filter(r=>[2025,2026].includes(r.year)&&r.month>=1&&r.month<=10);resetSelectionState();const y25=rawData.filter(r=>r.year===2025).length,y26=rawData.length-y25;if(!rawData.length){$('dataStatus').textContent='No valid Jan–Oct 2025/2026 rows';renderSelectionsUI();return}if(!y25||!y26){$('dataStatus').textContent=`WARNING: ${source} contains 2025: ${y25.toLocaleString()} / 2026: ${y26.toLocaleString()} records. Load a 2025 workbook as well to enable year-over-year comparison.`; }updateAll(); if(!y25||!y26){$('dataStatus').textContent=`${y25?'2025':'2026'} data loaded. Add the other year's workbook to enable year-over-year comparisons.`;}}
 function findDataSheet(workbook){for(const sheetName of workbook.SheetNames){const ws=workbook.Sheets[sheetName];const preview=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',range:0,raw:false}).slice(0,6);for(let i=0;i<preview.length;i++){const h=preview[i].map(norm);if(h.includes('year')&&h.includes('name')&&h.includes('state')&&h.includes('item name')&&h.includes('net amount (invoiced)'))return {ws,sheetName,headerRow:i}}}return null}
 async function rowsFromExcel(file){const buffer=await file.arrayBuffer();const wb=XLSX.read(buffer,{type:'array',cellDates:false});const found=findDataSheet(wb);if(!found)throw new Error(`Could not find sales sheet in ${file.name}`);return XLSX.utils.sheet_to_json(found.ws,{range:found.headerRow,defval:'',raw:true})}
 
